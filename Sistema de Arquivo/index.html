@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Arquivos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #file-system {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 5px;
+            margin: 5px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+        }
+
+        li.folder {
+            background-color: #d3e9ff;
+        }
+
+        li.file {
+            background-color: #fff9db;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Arquivos</h1>
+    <div id="file-system">
+        <button onclick="createFolder()">Criar Pasta</button>
+        <button onclick="createFile()">Criar Arquivo</button>
+        <ul id="fileList"></ul>
+    </div>
+
+    <!-- Modal para renomear -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <input type="text" id="newName" placeholder="Novo Nome">
+            <button onclick="renameItem()">Renomear</button>
+        </div>
+    </div>
+
+    <!-- Modal para mover -->
+    <div id="moveModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeMoveModal()">&times;</span>
+            <input type="text" id="moveTo" placeholder="Mover para (nome da pasta)">
+            <button onclick="moveItem()">Mover</button>
+        </div>
+    </div>
+
+    <script>
+        let fileSystem = []; // Armazena arquivos e pastas
+        let currentFolder = fileSystem; // Pasta atual em que estamos
+        let selectedItem = null; // Item selecionado para renomear ou mover
+        let path = []; // Caminho para navegar entre pastas
+
+        // Cria uma nova pasta
+        function createFolder() {
+            let folderName = prompt("Digite o nome da pasta:");
+
+            if (folderName) {
+                currentFolder.push({ name: folderName, type: 'folder', children: [] });
+                renderFileSystem(); // Atualiza a tela
+            }
+        }
+
+        // Cria um novo arquivo
+        function createFile() {
+            let fileName = prompt("Digite o nome do arquivo:");
+            if (fileName) {
+                currentFolder.push({ name: fileName, type: 'file' });
+                renderFileSystem(); // Atualiza a tela
+            }
+        }
+
+        // Renderiza o sistema de arquivos
+        function renderFileSystem() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = ''; // Limpa a lista de arquivos
+
+            currentFolder.forEach((item, index) => {
+                let li = document.createElement('li');
+                li.textContent = item.name;
+                li.classList.add(item.type);
+
+                let actions = document.createElement('span');
+                actions.innerHTML = `
+                    <button onclick="openItem(${index})">Abrir</button>
+                    <button onclick="prepareRename(${index})">Renomear</button>
+                    <button onclick="prepareMove(${index})">Mover</button>
+                    <button onclick="deleteItem(${index})">Excluir</button>
+                `;
+                li.appendChild(actions);
+                fileList.appendChild(li);
+            });
+        }
+
+        // Abre uma pasta ou um arquivo
+        function openItem(index) {
+            let item = currentFolder[index];
+            if (item.type === 'folder') {
+                path.push({ folder: currentFolder, index: index }); // Salva a pasta atual
+                currentFolder = item.children; // Muda para a nova pasta
+                renderFileSystem(); // Atualiza a tela
+            } else {
+                alert(`Abrindo arquivo: ${item.name}`); // Mostra mensagem para arquivos
+            }
+        }
+
+        // Prepara para renomear um item
+        function prepareRename(index) {
+            selectedItem = index;
+            document.getElementById('renameModal').style.display = 'block';
+        }
+
+        // Renomeia um item
+        function renameItem() {
+            let newName = document.getElementById('newName').value;
+            if (newName) {
+                currentFolder[selectedItem].name = newName; // Renomeia o item
+                renderFileSystem(); // Atualiza a tela
+                closeModal(); // Fecha a modal
+            }
+        }
+
+        // Fecha a modal de renomear
+        function closeModal() {
+            document.getElementById('renameModal').style.display = 'none';
+        }
+
+        // Prepara para mover um item
+        function prepareMove(index) {
+            selectedItem = index;
+            document.getElementById('moveModal').style.display = 'block';
+        }
+
+        // Move um item para uma nova pasta
+        function moveItem() {
+            let folderName = document.getElementById('moveTo').value;
+            let destinationFolder = findFolder(fileSystem, folderName);
+
+            if (destinationFolder && destinationFolder.type === 'folder') {
+                let itemToMove = currentFolder.splice(selectedItem, 1)[0]; // Remove o item da pasta atual
+                destinationFolder.children.push(itemToMove); // Adiciona na nova pasta
+                renderFileSystem(); // Atualiza a tela
+                closeMoveModal(); // Fecha a modal
+            } else {
+                alert("Pasta não encontrada");
+            }
+        }
+
+        // Fecha a modal de mover
+        function closeMoveModal() {
+            document.getElementById('moveModal').style.display = 'none';
+        }
+
+        // Exclui um item
+        function deleteItem(index) {
+            currentFolder.splice(index, 1); // Remove o item
+            renderFileSystem(); // Atualiza a tela
+        }
+
+        // Encontra uma pasta pelo nome
+        function findFolder(folder, name) {
+            for (let item of folder) {
+                if (item.name === name && item.type === 'folder') {
+                    return item; // Retorna a pasta encontrada
+                }
+                if (item.type === 'folder') {
+                    let found = findFolder(item.children, name);
+                    if (found) return found; // Retorna a pasta encontrada em subpastas
+                }
+            }
+            return null; // Se não encontrar
+        }
+
+        // Inicializa o sistema renderizando a tela
+        renderFileSystem();
+    </script>
+</body>
+</html>
